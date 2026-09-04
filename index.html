@@ -352,13 +352,14 @@
     /* VDO.Ninjaは音声/データエンジンとしてだけ使う */
     #engineHost iframe{
       position:fixed;
-      left:-10000px;
-      top:-10000px;
-      width:4px;
-      height:4px;
-      opacity:0.001;
+      right:0;
+      bottom:0;
+      width:2px;
+      height:2px;
+      opacity:0.01;
       border:0;
       pointer-events:none;
+      z-index:0;
     }
 
     .danger{
@@ -398,6 +399,7 @@
 
       <div class="hint">
         初回はSafariからVDO.Ninjaのマイク使用確認が出る場合があります。「許可」を選んでください。
+        iPhoneの「設定 → Safari → マイク」も許可してください。
         イベント運用ではイヤホン／ヘッドセットを推奨します。
       </div>
     </div>
@@ -628,6 +630,12 @@
 
   function setMic(on) {
     postTo(audioFrame, { mic: !!on });
+    // Newer API-compatible form as a fallback
+    postTo(audioFrame, { action: "mic", value: !!on });
+  }
+
+  function setPPT(on) {
+    postTo(audioFrame, { PPT: !!on });
   }
 
   function setGroups(groups) {
@@ -639,7 +647,7 @@
   }
 
   function setSpeakerMuted(muted) {
-    /* VDO.Ninja iframe APIでは mute が受信スピーカーのミュート制御に使える */
+    postTo(audioFrame, { speaker: !muted });
     postTo(audioFrame, { mute: !!muted });
   }
 
@@ -669,6 +677,7 @@
         .replace(/(?:^|&)autostart=(?=&|$)/g, m => m.replace("=", ""))
         .replace(/(?:^|&)groupmode=(?=&|$)/g, m => m.replace("=", ""))
         .replace(/(?:^|&)cleanoutput=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)safemode=(?=&|$)/g, m => m.replace("=", ""))
         .replace(/(?:^|&)dataonly=(?=&|$)/g, m => m.replace("=", ""))
         .replace(/(?:^|&)cleanish=(?=&|$)/g, m => m.replace("=", ""))
         .replace(/(?:^|&)mute=(?=&|$)/g, m => m.replace("=", ""));
@@ -691,6 +700,9 @@
       label: displayName,
       password: roomPassword || null,
       miconly: true,
+      audiodevice: 1,
+      videodevice: 0,
+      safemode: true,
       autostart: true,
       groupmode: true,
       groupview: currentRole.receive.join(","),
@@ -754,6 +766,7 @@
   function applyIdleAudioState() {
     setGroupView(currentRole.receive);
     setGroups([]);
+    setPPT(false);
     setMic(false);
     setSpeakerMuted(!speakerOn);
   }
@@ -877,7 +890,8 @@
     setTimeout(() => {
       if (!activeButton || activeGroup !== String(group)) return;
       setMic(true);
-    }, 115);
+      setPPT(true);
+    }, 220);
 
     heartbeatTimer = setInterval(() => {
       if (!activeGroup) return;
@@ -902,7 +916,8 @@
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
 
-    /* まずマイクOFF、次に状態通知、最後に送信Groupを解除 */
+    /* まずPTT/MICをOFF、次に状態通知、最後に送信Groupを解除 */
+    setPPT(false);
     setMic(false);
 
     if (activeGroup && !silent) {
@@ -1106,4 +1121,3 @@
 </script>
 </body>
 </html>
-
