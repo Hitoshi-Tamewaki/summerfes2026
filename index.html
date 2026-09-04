@@ -1,146 +1,1419 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>Web Audio API Gain & Meter Sample</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#0b0c10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>夏祭り INTERCOM</title>
+
   <style>
-    body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-    .control-panel { margin-bottom: 20px; }
-    .meter-container {
-      width: 300px;
-      height: 20px;
-      background: #e0e0e0;
-      border-radius: 10px;
-      overflow: hidden;
-      margin-top: 5px;
+    :root{
+      --bg:#0b0c10;
+      --panel:#17191f;
+      --panel2:#22252d;
+      --line:#353945;
+      --text:#ffffff;
+      --sub:#a8adb9;
+      --ok:#40d77b;
+      --talk:#ff4545;
+      --warn:#ffd24d;
+      --blue:#4aa3ff;
     }
-    .meter-bar {
-      height: 100%;
-      width: 0%;
-      background: #4caf50;
-      transition: width 0.05s ease, background-color 0.1s;
+
+    *{
+      box-sizing:border-box;
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    html,body{
+      margin:0;
+      min-height:100%;
+      background:var(--bg);
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      overscroll-behavior:none;
+    }
+
+    body{
+      min-height:100dvh;
+    }
+
+    button,input,select{
+      font:inherit;
+    }
+
+    button{
+      cursor:pointer;
+    }
+
+    .wrap{
+      width:min(100%,620px);
+      margin:0 auto;
+      padding:
+        calc(14px + env(safe-area-inset-top))
+        14px
+        calc(26px + env(safe-area-inset-bottom));
+    }
+
+    h1{
+      font-size:26px;
+      margin:4px 0 3px;
+      letter-spacing:.02em;
+    }
+
+    .sub{
+      font-size:13px;
+      color:var(--sub);
+      line-height:1.55;
+    }
+
+    .card{
+      margin-top:14px;
+      padding:16px;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:19px;
+    }
+
+    label{
+      display:block;
+      margin:14px 0 6px;
+      color:#c0c4cd;
+      font-size:13px;
+    }
+
+    input,select{
+      width:100%;
+      padding:14px;
+      color:#fff;
+      background:var(--panel2);
+      border:1px solid #3c414d;
+      border-radius:13px;
+      outline:none;
+      font-size:16px;
+    }
+
+    input:focus,select:focus{
+      border-color:#7d8493;
+    }
+
+    .primary{
+      width:100%;
+      margin-top:18px;
+      padding:16px;
+      border:0;
+      border-radius:15px;
+      background:#fff;
+      color:#101114;
+      font-size:17px;
+      font-weight:900;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .status{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      font-size:12px;
+      white-space:nowrap;
+      color:#c5cad4;
+    }
+
+    .dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:#6c707a;
+    }
+
+    .dot.on{
+      background:var(--ok);
+      box-shadow:0 0 12px rgba(64,215,123,.8);
+    }
+
+    .badge{
+      display:inline-block;
+      margin-top:5px;
+      padding:4px 9px;
+      border-radius:999px;
+      background:#262932;
+      color:#d7d9df;
+      font-size:11px;
+    }
+
+    .talkerPanel{
+      min-height:126px;
+      margin-top:9px;
+      padding:15px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      background:#101217;
+      border:1px solid #303540;
+      border-radius:16px;
+      transition:.12s ease;
+    }
+
+    .talkerPanel.active{
+      background:#102319;
+      border-color:var(--ok);
+      box-shadow:0 0 22px rgba(64,215,123,.12);
+    }
+
+    .talkerLabel{
+      color:var(--sub);
+      font-size:11px;
+      letter-spacing:.08em;
+    }
+
+    #talkerName{
+      margin-top:7px;
+      font-size:27px;
+      font-weight:900;
+      line-height:1.2;
+      word-break:break-word;
+    }
+
+    #talkerGroup{
+      margin-top:7px;
+      color:#d4d7de;
+      font-size:14px;
+    }
+
+    #talkerMore{
+      margin-top:6px;
+      color:var(--warn);
+      font-size:12px;
+    }
+
+    .pttGrid{
+      display:grid;
+      gap:12px;
+      margin-top:14px;
+    }
+
+    .ptt{
+      width:100%;
+      min-height:98px;
+      border:1px solid #454a57;
+      border-radius:18px;
+      background:#292c34;
+      color:#fff;
+      user-select:none;
+      -webkit-user-select:none;
+      touch-action:none;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      transition:transform .05s ease,background .06s ease,border .06s ease;
+    }
+
+    .ptt .big{
+      font-size:21px;
+      font-weight:900;
+    }
+
+    .ptt .small{
+      margin-top:5px;
+      font-size:12px;
+      color:#acb1bc;
+    }
+
+    .ptt.talking{
+      background:var(--talk);
+      border-color:#ff9a9a;
+      transform:scale(.985);
+      box-shadow:0 0 28px rgba(255,69,69,.28);
+    }
+
+    .ptt.talking .small{
+      color:#fff;
+    }
+
+    #myState{
+      margin-top:12px;
+      padding:13px;
+      text-align:center;
+      border-radius:13px;
+      background:#23262d;
+      font-weight:800;
+      font-size:14px;
+    }
+
+    #myState.talking{
+      background:#641a1a;
+    }
+
+    .controls{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:9px;
+      margin-top:11px;
+    }
+
+    .ctrl{
+      border:1px solid #3b404c;
+      border-radius:13px;
+      padding:12px;
+      color:#fff;
+      background:#282b33;
+      font-weight:700;
+    }
+
+    .switchLine{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 0;
+      border-bottom:1px solid #2f333d;
+      font-size:14px;
+    }
+
+    .switchLine:last-child{
+      border-bottom:0;
+    }
+
+    .switch{
+      appearance:none;
+      -webkit-appearance:none;
+      width:46px;
+      height:27px;
+      padding:0;
+      margin:0;
+      border:0;
+      border-radius:999px;
+      background:#4a4e58;
+      position:relative;
+      flex:0 0 auto;
+    }
+
+    .switch::after{
+      content:"";
+      position:absolute;
+      top:3px;
+      left:3px;
+      width:21px;
+      height:21px;
+      border-radius:50%;
+      background:white;
+      transition:.14s;
+    }
+
+    .switch:checked{
+      background:var(--ok);
+    }
+
+    .switch:checked::after{
+      left:22px;
+    }
+
+    .hint{
+      margin-top:13px;
+      font-size:12px;
+      color:#8f95a2;
+      line-height:1.65;
+    }
+
+    .roleInfo{
+      margin-top:13px;
+      padding:12px;
+      background:#22252c;
+      border-radius:13px;
+      color:#d4d7de;
+      font-size:12px;
+      line-height:1.7;
+    }
+
+    .chip{
+      display:inline-block;
+      padding:4px 8px;
+      margin:4px 3px 0 0;
+      border-radius:999px;
+      background:#30343e;
+      color:#fff;
+      font-size:11px;
+    }
+
+    #setup{display:block;}
+    #app{display:none;}
+
+    /* VDO.Ninjaは音声/データエンジンとしてだけ使う */
+    #engineHost iframe{
+      position:fixed;
+      right:0;
+      bottom:0;
+      width:2px;
+      height:2px;
+      opacity:0.01;
+      border:0;
+      pointer-events:none;
+      z-index:0;
+    }
+
+    .danger{
+      color:#ff9e9e;
+    }
+
+    .micBox{
+      margin-top:13px;
+      padding:12px;
+      background:#111319;
+      border:1px solid #333845;
+      border-radius:14px;
+    }
+
+    .micHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      font-size:13px;
+    }
+
+    .micOk{ color:var(--ok); }
+    .micWarn{ color:var(--warn); }
+    .micBad{ color:#ff8787; }
+
+    .meter{
+      height:12px;
+      margin-top:9px;
+      overflow:hidden;
+      border-radius:999px;
+      background:#292d36;
+    }
+
+    .meterFill{
+      width:0%;
+      height:100%;
+      border-radius:999px;
+      background:linear-gradient(90deg,#40d77b 0%,#ffd24d 70%,#ff4545 100%);
+      transition:width .08s linear;
+    }
+
+    .micNote{
+      margin-top:7px;
+      color:#969ca8;
+      font-size:11px;
+      line-height:1.5;
     }
   </style>
 </head>
+
 <body>
+<div class="wrap">
 
-  <h2>マイク音量増幅 ＆ レベルメーター</h2>
+  <section id="setup">
+    <h1>🎧 夏祭り INTERCOM</h1>
+    <div class="sub">VDO.Ninjaを音声エンジンとして使う、iPhone向けスタッフインカム</div>
 
-  <div class="control-panel">
-    <button id="startBtn">マイク開始</button>
-    <button id="stopBtn" disabled>停止</button>
-  </div>
+    <div class="card">
+      <label for="room">ROOM名</label>
+      <input id="room" value="summerfes2026" autocomplete="off" spellcheck="false">
 
-  <div class="control-panel">
-    <label for="gainRange">Gain（増幅率）: <span id="gainVal">1.5</span>倍</label><br>
-    <input type="range" id="gainRange" min="0" max="5" step="0.1" value="1.5">
-  </div>
+      <label for="name">名前</label>
+      <input id="name" placeholder="例：為脇" autocomplete="off">
 
-  <div>
-    <label>入力レベル:</label>
-    <div class="meter-container">
-      <div id="meterBar" class="meter-bar"></div>
+      <label for="role">担当</label>
+      <select id="role">
+        <option value="hq">本部</option>
+        <option value="stage">ステージ</option>
+        <option value="relay">中継・罰ゲーム会場</option>
+        <option value="audio">音響</option>
+      </select>
+
+      <label for="password">ROOMパスワード（任意）</label>
+      <input id="password" type="password" placeholder="設定推奨" autocomplete="new-password">
+
+      <label for="micBoost">マイクブースト</label>
+      <select id="micBoost">
+        <option value="130">標準 130%</option>
+        <option value="160" selected>強め 160%（推奨）</option>
+        <option value="190">最大 190%</option>
+      </select>
+
+      <div class="micBox">
+        <div class="micHeader">
+          <span>🎙 マイク許可</span>
+          <strong id="preflightStatus" class="micWarn">未確認</strong>
+        </div>
+        <div class="meter"><div id="preflightMeter" class="meterFill"></div></div>
+        <div id="preflightNote" class="micNote">接続ボタンを押すと、先にこのページでマイク許可を確認します。</div>
+      </div>
+
+      <div id="roleInfo" class="roleInfo"></div>
+
+      <button id="connectBtn" class="primary">🎧 接続する</button>
+
+      <div class="hint">
+        接続時にこのHTML側で先にマイク許可を取得してからVDO.Ninjaへ接続します。
+        許可が消えた場合は、接続後の「🎙 マイク再認証」を押してください。
+        iPhoneの「設定 → Safari → マイク」は「確認」または「許可」にしてください。
+        イベント運用ではイヤホン／ヘッドセットを推奨します。
+      </div>
     </div>
-  </div>
+  </section>
 
-  <script>
-    let audioCtx = null;
-    let mediaStream = null;
-    let gainNode = null;
-    let analyserNode = null;
-    let animationId = null;
+  <section id="app">
+    <div class="row">
+      <div>
+        <h1>INTERCOM</h1>
+        <div id="myName" class="sub"></div>
+        <span id="roleBadge" class="badge"></span>
+      </div>
+      <div class="status">
+        <span id="statusDot" class="dot"></span>
+        <span id="statusText">CONNECTING</span>
+      </div>
+    </div>
 
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const gainRange = document.getElementById('gainRange');
-    const gainVal = document.getElementById('gainVal');
-    const meterBar = document.getElementById('meterBar');
+    <div class="card">
+      <div class="talkerLabel">CURRENT TALKER</div>
+      <div id="talkerPanel" class="talkerPanel">
+        <div id="talkerName">待機中</div>
+        <div id="talkerGroup">-</div>
+        <div id="talkerMore"></div>
+      </div>
+    </div>
 
-    // Gain（音量倍率）の変更をリアルタイム反映
-    gainRange.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value);
-      gainVal.textContent = val.toFixed(1);
-      if (gainNode) {
-        gainNode.gain.value = val;
-      }
-    });
+    <div class="card">
+      <div class="sub">押している間だけ送信</div>
+      <div id="pttGrid" class="pttGrid"></div>
+      <div id="myState">🎧 受信中 / MIC OFF</div>
+    </div>
 
-    startBtn.addEventListener('click', async () => {
-      try {
-        // 1. マイクの入力ストリームを取得
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            autoGainControl: false, // OS/ブラウザの自動感度調整をOFFにして手動制御する
-            echoCancellation: true,
-            noiseSuppression: false
-          }
-        });
+    <div class="card">
+      <div class="sub">MIC STATUS</div>
+      <div class="micBox">
+        <div class="micHeader">
+          <span>VDO.Ninja入力レベル</span>
+          <strong id="liveMicStatus" class="micWarn">待機中</strong>
+        </div>
+        <div class="meter"><div id="liveMicMeter" class="meterFill"></div></div>
+        <div id="liveMicNote" class="micNote">PTTを押して話すと入力音量を確認できます。</div>
+      </div>
+    </div>
 
-        // 2. AudioContextと各ノードの生成
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioCtx.createMediaStreamSource(mediaStream);
+    <div class="card">
+      <div class="sub">CONTROL</div>
 
-        gainNode = audioCtx.createGain();
-        gainNode.gain.value = parseFloat(gainRange.value); // 初期音量
+      <div class="controls">
+        <button id="speakerBtn" class="ctrl">🔊 受信 ON</button>
+        <button id="micRepairBtn" class="ctrl">🎙 マイク再認証</button>
+        <button id="testBeepBtn" class="ctrl">♪ ピッ音テスト</button>
+        <button id="reconnectBtn" class="ctrl">↻ 再接続</button>
+        <button id="settingsBtn" class="ctrl">⚙ 設定へ戻る</button>
+      </div>
 
-        analyserNode = audioCtx.createAnalyser();
-        analyserNode.fftSize = 256;
+      <div style="margin-top:12px">
+        <div class="switchLine">
+          <span>PTT開始時のピッ音</span>
+          <input id="localBeepSwitch" class="switch" type="checkbox" checked>
+        </div>
+        <div class="switchLine">
+          <span>他の人が話し始めた時のピッ音</span>
+          <input id="remoteBeepSwitch" class="switch" type="checkbox" checked>
+        </div>
+      </div>
+    </div>
 
-        // 3. パイプライン接続: Source -> Gain -> Analyser
-        // ※スピーカー出力（audioCtx.destination）へ接続するとハウリングするためあえて未接続にしています
-        source.connect(gainNode);
-        gainNode.connect(analyserNode);
+    <div class="hint">
+      iPhoneで画面をロックしたりSafariをバックグラウンドにすると通信が止まることがあります。
+      使用中はこの画面を前面表示してください。画面が隠れた場合はPTTを強制終了します。
+    </div>
+  </section>
 
-        // 4. メーター更新ループ開始
-        updateMeter();
+</div>
 
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-      } catch (err) {
-        alert('マイクの開始に失敗しました: ' + err.message);
-      }
-    });
+<div id="engineHost"></div>
 
-    stopBtn.addEventListener('click', () => {
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
-      }
-      if (audioCtx) {
-        audioCtx.close();
-      }
-      cancelAnimationFrame(animationId);
-      meterBar.style.width = '0%';
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    });
+<script>
+(() => {
+  "use strict";
 
-    // 5. 振幅データから音量（RMS）を計算して表示する関数
-    function updateMeter() {
-      const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
-      analyserNode.getByteTimeDomainData(dataArray);
+  /* -----------------------------
+     系統
+  ------------------------------ */
+  const GROUP = Object.freeze({
+    ALL: "1",
+    STAGE: "2",
+    RELAY: "3",
+    AUDIO: "4"
+  });
 
-      // 時間軸データの各サンプル値からRMS（二乗平均平方根）を計算
-      let sumSquares = 0;
-      for (let i = 0; i < dataArray.length; i++) {
-        // 128を中心（無音）とした -1.0 〜 1.0 の範囲に正規化
-        const norm = (dataArray[i] - 128) / 128;
-        sumSquares += norm * norm;
-      }
-      const rms = Math.sqrt(sumSquares / dataArray.length);
+  const GROUP_NAME = Object.freeze({
+    "1": "📢 全体",
+    "2": "🎤 ステージ",
+    "3": "📡 中継・罰ゲーム会場",
+    "4": "🎚 音響"
+  });
 
-      // メーターのパーセンテージ計算（RMS値に係数を掛けて感度調整）
-      const level = Math.min(100, Math.round(rms * 250));
-      meterBar.style.width = level + '%';
-
-      // 90%以上の過大入力（音割れリスク）時は赤色に変更
-      if (level > 90) {
-        meterBar.style.background = '#f44336';
-      } else {
-        meterBar.style.background = '#4caf50';
-      }
-
-      animationId = requestAnimationFrame(updateMeter);
+  const ROLE = Object.freeze({
+    hq: {
+      label: "本部",
+      receive: [GROUP.ALL, GROUP.STAGE, GROUP.RELAY, GROUP.AUDIO],
+      talk: [
+        ["全体連絡", GROUP.ALL],
+        ["ステージ", GROUP.STAGE],
+        ["中継会場", GROUP.RELAY],
+        ["音響", GROUP.AUDIO]
+      ]
+    },
+    stage: {
+      label: "ステージ",
+      receive: [GROUP.ALL, GROUP.STAGE],
+      talk: [["本部・ステージ", GROUP.STAGE]]
+    },
+    relay: {
+      label: "中継・罰ゲーム会場",
+      receive: [GROUP.ALL, GROUP.RELAY],
+      talk: [["本部・中継", GROUP.RELAY]]
+    },
+    audio: {
+      label: "音響",
+      receive: [GROUP.ALL, GROUP.AUDIO],
+      talk: [["本部・音響", GROUP.AUDIO]]
     }
-  </script>
+  });
+
+  const $ = id => document.getElementById(id);
+
+  let audioFrame = null;
+  let dataFrame = null;
+
+  let currentRoleKey = "";
+  let currentRole = null;
+  let roomName = "";
+  let displayName = "";
+  let roomPassword = "";
+
+  let activeButton = null;
+  let activeGroup = null;
+  let heartbeatTimer = null;
+  let staleTimer = null;
+  let audioContext = null;
+  let speakerOn = true;
+  let shuttingDown = false;
+  let micGainPercent = 160;
+  let lastVdoLoudness = 0;
+  let loudnessSubscribed = false;
+  let preflightStream = null;
+
+  const activeTalkers = new Map();
+
+  /* -----------------------------
+     端末ID
+  ------------------------------ */
+  let deviceId = localStorage.getItem("summerfes_intercom_device_id");
+  if (!deviceId) {
+    deviceId = "dev_" + cryptoRandom(10) + "_" + Date.now().toString(36);
+    localStorage.setItem("summerfes_intercom_device_id", deviceId);
+  }
+
+  function cryptoRandom(length) {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    const bytes = new Uint8Array(length);
+    if (window.crypto && crypto.getRandomValues) {
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, b => chars[b % chars.length]).join("");
+    }
+    return Math.random().toString(36).slice(2, 2 + length);
+  }
+
+  /* -----------------------------
+     設定表示
+  ------------------------------ */
+  function updateRoleInfo() {
+    const role = ROLE[$("role").value];
+    const receive = role.receive.map(g => `<span class="chip">${escapeHtml(GROUP_NAME[g])}</span>`).join("");
+    const talk = role.talk.map(([name]) => `<span class="chip">${escapeHtml(name)}</span>`).join("");
+
+    $("roleInfo").innerHTML =
+      `<b>${escapeHtml(role.label)}</b><br>` +
+      `受信：${receive}<br>` +
+      `送信ボタン：${talk}`;
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, ch => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[ch]));
+  }
+
+  /* -----------------------------
+     iPhoneマイク許可の事前取得
+     Safariではiframe内だけでgetUserMediaすると
+     許可が不安定になるケースがあるため、親ページで先に取得する。
+  ------------------------------ */
+  async function preflightMicrophone(showMeter = true) {
+    const status = $("preflightStatus");
+    const note = $("preflightNote");
+    const meter = $("preflightMeter");
+
+    status.textContent = "確認中…";
+    status.className = "micWarn";
+    note.textContent = "iPhoneのマイク許可を確認しています。";
+    if (meter) meter.style.width = "0%";
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      status.textContent = "非対応";
+      status.className = "micBad";
+      note.textContent = "このブラウザではマイクAPIを利用できません。Safariで開いてください。";
+      return false;
+    }
+
+    try {
+      if (preflightStream) {
+        preflightStream.getTracks().forEach(t => t.stop());
+        preflightStream = null;
+      }
+
+      preflightStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          voiceIsolation: true,
+          channelCount: 1
+        },
+        video: false
+      });
+
+      status.textContent = "許可OK";
+      status.className = "micOk";
+
+      const track = preflightStream.getAudioTracks()[0];
+      const label = track && track.label ? track.label : "iPhoneマイク";
+      note.textContent = "使用可能: " + label;
+
+      if (showMeter && audioContext) {
+        try {
+          const source = audioContext.createMediaStreamSource(preflightStream);
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          const data = new Uint8Array(analyser.fftSize);
+          const started = performance.now();
+
+          await new Promise(resolve => {
+            const tick = () => {
+              analyser.getByteTimeDomainData(data);
+              let sum = 0;
+              for (let i = 0; i < data.length; i++) {
+                const x = (data[i] - 128) / 128;
+                sum += x * x;
+              }
+              const rms = Math.sqrt(sum / data.length);
+              const pct = Math.max(2, Math.min(100, rms * 420));
+              if (meter) meter.style.width = pct.toFixed(0) + "%";
+              if (performance.now() - started < 900) requestAnimationFrame(tick);
+              else resolve();
+            };
+            tick();
+          });
+
+          try { source.disconnect(); } catch (_) {}
+          try { analyser.disconnect(); } catch (_) {}
+        } catch (_) {}
+      }
+
+      /* VDO.Ninja側にマイクを渡す前に親ページ側のキャプチャを解放する */
+      preflightStream.getTracks().forEach(t => t.stop());
+      preflightStream = null;
+      return true;
+
+    } catch (err) {
+      console.warn("Microphone preflight failed", err);
+      status.textContent = "許可が必要";
+      status.className = "micBad";
+
+      if (err && err.name === "NotAllowedError") {
+        note.textContent = "マイクが拒否されています。SafariのWebサイト設定でマイクを許可してから再度押してください。";
+      } else if (err && err.name === "NotFoundError") {
+        note.textContent = "利用できるマイクが見つかりません。イヤホン/Bluetoothを確認してください。";
+      } else {
+        note.textContent = "マイクを開始できませんでした。Safariを開き直して再試行してください。";
+      }
+      return false;
+    }
+  }
+
+  /* -----------------------------
+     AudioContext / ピッ音
+  ------------------------------ */
+  async function prepareAudioContext() {
+    if (!audioContext) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      audioContext = new Ctx();
+    }
+    if (audioContext.state === "suspended") {
+      try { await audioContext.resume(); } catch (_) {}
+    }
+  }
+
+  function beep(frequency = 920, duration = 0.075, volume = 0.14) {
+    if (!audioContext || audioContext.state !== "running") return;
+
+    try {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const now = audioContext.currentTime;
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(frequency, now);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(volume, now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start(now);
+      osc.stop(now + duration + 0.02);
+    } catch (err) {
+      console.warn("beep failed", err);
+    }
+  }
+
+  function localStartBeep() {
+    if ($("localBeepSwitch").checked) beep(980, 0.075, 0.15);
+  }
+
+  function remoteStartBeep() {
+    if ($("remoteBeepSwitch").checked) beep(740, 0.065, 0.10);
+  }
+
+  /* -----------------------------
+     VDO iframe control
+  ------------------------------ */
+  function postTo(frame, message) {
+    if (!frame || !frame.contentWindow) return;
+    frame.contentWindow.postMessage(message, "*");
+  }
+
+  function setMic(on) {
+    postTo(audioFrame, { mic: !!on });
+    // Newer API-compatible form as a fallback
+    postTo(audioFrame, { action: "mic", value: !!on });
+  }
+
+  function setPPT(on) {
+    postTo(audioFrame, { PPT: !!on });
+  }
+
+  function setGroups(groups) {
+    postTo(audioFrame, { groups });
+  }
+
+  function setGroupView(groups) {
+    postTo(audioFrame, { groupView: groups });
+  }
+
+  function setSpeakerMuted(muted) {
+    postTo(audioFrame, { speaker: !muted });
+    postTo(audioFrame, { mute: !!muted });
+  }
+
+  function sendIntercomData(payload) {
+    postTo(dataFrame, {
+      sendData: {
+        summerfesIntercom: payload
+      },
+      type: "pcs"
+    });
+  }
+
+  function makeVdoUrl(params) {
+    const p = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === true) {
+        p.append(key, "");
+      } else if (value !== false && value !== null && value !== undefined && value !== "") {
+        p.set(key, String(value));
+      }
+    });
+
+    /* URLSearchParamsの "key=" をVDO.Ninjaのフラグ形式 "key" に寄せる */
+    return "https://vdo.ninja/?" +
+      p.toString()
+        .replace(/(?:^|&)miconly=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)autostart=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)groupmode=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)cleanoutput=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)safemode=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)voiceisolation=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)compressor=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)limiter=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)dataonly=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)cleanish=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)mute=(?=&|$)/g, m => m.replace("=", ""));
+  }
+
+  function createEngines() {
+    destroyEngines();
+
+    shuttingDown = false;
+    $("statusDot").classList.remove("on");
+    $("statusText").textContent = "CONNECTING";
+
+    /* 音声用。groupViewで受信系統を固定し、送信時だけgroupsを付与する。 */
+    audioFrame = document.createElement("iframe");
+    audioFrame.id = "vdoAudioEngine";
+    audioFrame.allow = "autoplay *; microphone *; camera *; fullscreen *; picture-in-picture *";
+    audioFrame.setAttribute("playsinline", "");
+    audioFrame.src = makeVdoUrl({
+      room: roomName,
+      label: displayName,
+      password: roomPassword || null,
+      miconly: true,
+      audiodevice: 1,
+      videodevice: 0,
+      autostart: true,
+      groupmode: true,
+      groupview: currentRole.receive.join(","),
+      audiogain: micGainPercent,
+      autogain: 1,
+      echocancellation: 1,
+      denoise: 1,
+      voiceisolation: true,
+      compressor: true,
+      limiter: true,
+      outboundaudiobitrate: 64,
+      audiobitrate: 64,
+      cleanoutput: true,
+      mute: true
+    });
+
+    /* PTT状態共有用。音声グループから独立させることで表示を安定させる。 */
+    dataFrame = document.createElement("iframe");
+    dataFrame.id = "vdoDataEngine";
+    dataFrame.allow = "autoplay *";
+    dataFrame.setAttribute("playsinline", "");
+    dataFrame.src = makeVdoUrl({
+      room: roomName + "-intercom-data",
+      label: displayName,
+      password: roomPassword || null,
+      dataonly: true,
+      autostart: true,
+      cleanish: true
+    });
+
+    $("engineHost").appendChild(audioFrame);
+    $("engineHost").appendChild(dataFrame);
+
+    let loaded = 0;
+    const markLoaded = () => {
+      loaded++;
+      if (loaded >= 2) {
+        setTimeout(() => {
+          if (shuttingDown) return;
+          applyIdleAudioState();
+          postTo(audioFrame, { getLoudness: true, cib: "intercom-mic-meter" });
+          loudnessSubscribed = true;
+          $("statusDot").classList.add("on");
+          $("statusText").textContent = "ONLINE";
+        }, 900);
+      }
+    };
+
+    audioFrame.addEventListener("load", markLoaded, { once: true });
+    dataFrame.addEventListener("load", markLoaded, { once: true });
+  }
+
+  function destroyEngines() {
+    shuttingDown = true;
+    stopTalk(true);
+    activeTalkers.clear();
+    renderTalkers();
+
+    for (const frame of [audioFrame, dataFrame]) {
+      if (frame) {
+        try {
+          frame.src = "about:blank";
+          frame.remove();
+        } catch (_) {}
+      }
+    }
+
+    audioFrame = null;
+    dataFrame = null;
+    loudnessSubscribed = false;
+    lastVdoLoudness = 0;
+    updateLiveMicMeter(0, false);
+  }
+
+  function applyIdleAudioState() {
+    setGroupView(currentRole.receive);
+    setGroups([]);
+    setPPT(false);
+    setMic(false);
+    setSpeakerMuted(!speakerOn);
+  }
+
+  /* -----------------------------
+     Talker表示データ
+  ------------------------------ */
+  function talkPayload(action, group) {
+    return {
+      app: "summerfes-intercom",
+      version: 2,
+      action,
+      deviceId,
+      name: displayName,
+      role: currentRoleKey,
+      group,
+      ts: Date.now()
+    };
+  }
+
+  function canHearGroup(group) {
+    return !!currentRole && currentRole.receive.includes(String(group));
+  }
+
+  function updateTalker(payload, isLocal = false) {
+    if (!payload || !canHearGroup(String(payload.group))) return;
+
+    const id = String(payload.deviceId || "");
+    if (!id) return;
+
+    const existed = activeTalkers.has(id);
+
+    activeTalkers.set(id, {
+      deviceId: id,
+      name: payload.name || "名称未設定",
+      role: payload.role || "",
+      group: String(payload.group),
+      updated: Date.now()
+    });
+
+    if (!isLocal && !existed && payload.action === "start") {
+      remoteStartBeep();
+    }
+
+    renderTalkers();
+  }
+
+  function removeTalker(device) {
+    activeTalkers.delete(String(device));
+    renderTalkers();
+  }
+
+  function renderTalkers() {
+    const talkers = [...activeTalkers.values()]
+      .filter(t => canHearGroup(t.group))
+      .sort((a,b) => b.updated - a.updated);
+
+    if (!talkers.length) {
+      $("talkerPanel").classList.remove("active");
+      $("talkerName").textContent = "待機中";
+      $("talkerGroup").textContent = "-";
+      $("talkerMore").textContent = "";
+      return;
+    }
+
+    const main = talkers[0];
+    $("talkerPanel").classList.add("active");
+    $("talkerName").textContent = "🎙 " + main.name;
+    $("talkerGroup").textContent = GROUP_NAME[main.group] || main.group;
+
+    if (talkers.length === 2) {
+      $("talkerMore").textContent = "＋ " + talkers[1].name + " も送信中";
+    } else if (talkers.length > 2) {
+      $("talkerMore").textContent =
+        "＋ " + talkers[1].name + " ほか " + (talkers.length - 2) + "名も送信中";
+    } else {
+      $("talkerMore").textContent = "";
+    }
+  }
+
+  function startStaleChecker() {
+    clearInterval(staleTimer);
+    staleTimer = setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+
+      for (const [id, talker] of activeTalkers.entries()) {
+        if (now - talker.updated > 4300) {
+          activeTalkers.delete(id);
+          changed = true;
+        }
+      }
+      if (changed) renderTalkers();
+    }, 900);
+  }
+
+  /* -----------------------------
+     PTT
+  ------------------------------ */
+  async function startTalk(group, title, button) {
+    if (activeButton || !audioFrame || !dataFrame) return;
+
+    await prepareAudioContext();
+
+    activeButton = button;
+    activeGroup = String(group);
+
+    button.classList.add("talking");
+    $("myState").classList.add("talking");
+    $("myState").textContent = "🔴 送信中：" + title;
+
+    /* ピッ音がマイクへ乗りにくいよう、先に鳴らして少し待ってからMIC ON */
+    localStartBeep();
+    lastVdoLoudness = 0;
+    updateLiveMicMeter(0, true);
+    if (!loudnessSubscribed) {
+      postTo(audioFrame, { getLoudness: true, cib: "intercom-mic-meter" });
+      loudnessSubscribed = true;
+    }
+
+    setGroups([activeGroup]);
+
+    const startPayload = talkPayload("start", activeGroup);
+    updateTalker(startPayload, true);
+    sendIntercomData(startPayload);
+
+    setTimeout(() => {
+      if (!activeButton || activeGroup !== String(group)) return;
+      setMic(true);
+      setPPT(true);
+    }, 220);
+
+    heartbeatTimer = setInterval(() => {
+      if (!activeGroup) return;
+      const heartbeat = talkPayload("heartbeat", activeGroup);
+      sendIntercomData(heartbeat);
+
+      const self = activeTalkers.get(deviceId);
+      if (self) {
+        self.updated = Date.now();
+        activeTalkers.set(deviceId, self);
+      }
+    }, 1200);
+
+    if (navigator.vibrate) {
+      try { navigator.vibrate(18); } catch (_) {}
+    }
+  }
+
+  function stopTalk(silent = false) {
+    if (!activeButton && !activeGroup) return;
+
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+
+    /* まずPTT/MICをOFF、次に状態通知、最後に送信Groupを解除 */
+    setPPT(false);
+    setMic(false);
+
+    if (activeGroup && !silent) {
+      sendIntercomData(talkPayload("stop", activeGroup));
+    }
+
+    removeTalker(deviceId);
+
+    setTimeout(() => {
+      if (!activeGroup) setGroups([]);
+    }, 90);
+
+    if (activeButton) activeButton.classList.remove("talking");
+    activeButton = null;
+    activeGroup = null;
+
+    $("myState").classList.remove("talking");
+    $("myState").textContent = "🎧 受信中 / MIC OFF";
+    updateLiveMicMeter(0, false);
+  }
+
+  function buildPttButtons() {
+    const host = $("pttGrid");
+    host.innerHTML = "";
+
+    currentRole.talk.forEach(([title, group]) => {
+      const btn = document.createElement("button");
+      btn.className = "ptt";
+      btn.innerHTML =
+        `<div class="big">🎙 ${escapeHtml(title)}</div>` +
+        `<div class="small">押している間 TALK</div>`;
+
+      btn.addEventListener("pointerdown", e => {
+        e.preventDefault();
+        try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+        startTalk(group, title, btn);
+      });
+
+      btn.addEventListener("pointerup", e => {
+        e.preventDefault();
+        stopTalk();
+      });
+
+      btn.addEventListener("pointercancel", stopTalk);
+      btn.addEventListener("lostpointercapture", () => {
+        if (activeButton === btn) stopTalk();
+      });
+      btn.addEventListener("contextmenu", e => e.preventDefault());
+
+      host.appendChild(btn);
+    });
+  }
+
+  /* -----------------------------
+     VDO.Ninja実入力レベル
+  ------------------------------ */
+  function normalizeLoudness(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 0;
+    if (n < 0) return Math.max(0, Math.min(100, ((n + 60) / 60) * 100));
+    if (n <= 1) return Math.max(0, Math.min(100, n * 100));
+    if (n <= 100) return n;
+    return Math.max(0, Math.min(100, n / 2.55));
+  }
+
+  function extractLoudnessPercent(obj) {
+    if (!obj || typeof obj !== "object") return 0;
+    let best = 0;
+    for (const value of Object.values(obj)) {
+      if (typeof value === "number") best = Math.max(best, normalizeLoudness(value));
+      else if (value && typeof value === "object") best = Math.max(best, extractLoudnessPercent(value));
+    }
+    return best;
+  }
+
+  function updateLiveMicMeter(percent, isTalking = !!activeGroup) {
+    const meter = $("liveMicMeter");
+    const status = $("liveMicStatus");
+    const note = $("liveMicNote");
+    if (!meter || !status || !note) return;
+
+    const pct = Math.max(0, Math.min(100, Number(percent) || 0));
+    meter.style.width = pct.toFixed(0) + "%";
+
+    if (!isTalking) {
+      status.textContent = "待機中";
+      status.className = "micWarn";
+      note.textContent = "PTTを押して話すと入力音量を確認できます。";
+      return;
+    }
+
+    if (pct >= 12) {
+      status.textContent = "入力OK";
+      status.className = "micOk";
+      note.textContent = "マイク入力を検出しています。";
+    } else if (pct > 2) {
+      status.textContent = "やや小さい";
+      status.className = "micWarn";
+      note.textContent = "口元をマイクに近づけるか、設定画面でマイクブーストを上げてください。";
+    } else {
+      status.textContent = "入力ほぼ無し";
+      status.className = "micBad";
+      note.textContent = "話しているのにメーターが動かない場合は「マイク再認証」を押してください。";
+    }
+  }
+
+  /* -----------------------------
+     データ受信
+  ------------------------------ */
+  function handleDataReceived(raw) {
+    let data = raw;
+
+    if (typeof data === "string") {
+      try { data = JSON.parse(data); } catch (_) { return; }
+    }
+
+    const payload = data && data.summerfesIntercom;
+    if (!payload || payload.app !== "summerfes-intercom") return;
+    if (String(payload.deviceId) === deviceId) return;
+
+    if (payload.action === "start" || payload.action === "heartbeat") {
+      updateTalker(payload, false);
+    } else if (payload.action === "stop") {
+      removeTalker(payload.deviceId);
+    }
+  }
+
+  window.addEventListener("message", event => {
+    if (dataFrame && event.source === dataFrame.contentWindow) {
+      const data = event.data;
+      if (data && typeof data === "object" && "dataReceived" in data) {
+        handleDataReceived(data.dataReceived);
+      }
+      return;
+    }
+
+    if (audioFrame && event.source === audioFrame.contentWindow) {
+      const data = event.data;
+      if (data && typeof data === "object" && data.loudness) {
+        const pct = extractLoudnessPercent(data.loudness);
+        lastVdoLoudness = pct;
+        updateLiveMicMeter(pct, !!activeGroup);
+      }
+      return;
+    }
+  });
+
+  /* -----------------------------
+     接続
+  ------------------------------ */
+  async function connect() {
+    roomName = $("room").value.trim();
+    displayName = $("name").value.trim();
+    roomPassword = $("password").value;
+    currentRoleKey = $("role").value;
+    currentRole = ROLE[currentRoleKey];
+
+    if (!roomName) {
+      alert("ROOM名を入力してください。");
+      return;
+    }
+
+    if (!displayName) {
+      alert("名前を入力してください。");
+      return;
+    }
+
+    await prepareAudioContext();
+    micGainPercent = Number($("micBoost").value) || 160;
+
+    const micReady = await preflightMicrophone(true);
+    if (!micReady) {
+      alert("マイクを許可できなかったため接続を停止しました。SafariのWebサイト設定でマイクを許可して、もう一度『接続する』を押してください。");
+      return;
+    }
+
+    localStorage.setItem("summerfes_intercom_room", roomName);
+    localStorage.setItem("summerfes_intercom_name", displayName);
+    localStorage.setItem("summerfes_intercom_role", currentRoleKey);
+    localStorage.setItem("summerfes_intercom_micgain", String(micGainPercent));
+
+    $("setup").style.display = "none";
+    $("app").style.display = "block";
+    $("myName").textContent = displayName;
+    $("roleBadge").textContent = currentRole.label;
+
+    speakerOn = true;
+    $("speakerBtn").textContent = "🔊 受信 ON";
+
+    buildPttButtons();
+    activeTalkers.clear();
+    renderTalkers();
+    createEngines();
+    startStaleChecker();
+  }
+
+  /* -----------------------------
+     Controls
+  ------------------------------ */
+  $("connectBtn").addEventListener("click", connect);
+
+  $("speakerBtn").addEventListener("click", async () => {
+    await prepareAudioContext();
+    speakerOn = !speakerOn;
+    setSpeakerMuted(!speakerOn);
+    $("speakerBtn").textContent = speakerOn ? "🔊 受信 ON" : "🔇 受信 OFF";
+  });
+
+  $("testBeepBtn").addEventListener("click", async () => {
+    await prepareAudioContext();
+    beep(980, 0.075, 0.15);
+  });
+
+  $("micRepairBtn").addEventListener("click", async () => {
+    await prepareAudioContext();
+    stopTalk();
+    $("statusDot").classList.remove("on");
+    $("statusText").textContent = "MIC CHECK";
+
+    const ok = await preflightMicrophone(true);
+    if (!ok) {
+      $("statusText").textContent = "MIC ERROR";
+      alert("マイクを再認証できませんでした。SafariのWebサイト設定でマイクを許可してください。");
+      return;
+    }
+
+    activeTalkers.clear();
+    renderTalkers();
+    createEngines();
+  });
+
+  $("reconnectBtn").addEventListener("click", async () => {
+    await prepareAudioContext();
+    stopTalk();
+    const ok = await preflightMicrophone(false);
+    if (!ok) return;
+    activeTalkers.clear();
+    renderTalkers();
+    createEngines();
+  });
+
+  $("settingsBtn").addEventListener("click", () => {
+    destroyEngines();
+    clearInterval(staleTimer);
+    $("app").style.display = "none";
+    $("setup").style.display = "block";
+    $("statusDot").classList.remove("on");
+    $("statusText").textContent = "OFFLINE";
+  });
+
+  /* 指を離した/アプリ切替などでは必ず止める */
+  window.addEventListener("pointerup", stopTalk);
+  window.addEventListener("blur", stopTalk);
+  window.addEventListener("pagehide", () => stopTalk(true));
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopTalk();
+    } else if (audioFrame) {
+      $("liveMicStatus").textContent = "要確認";
+      $("liveMicStatus").className = "micWarn";
+      $("liveMicNote").textContent = "Safariへ戻った後に音が出ない場合は「マイク再認証」を押してください。";
+    }
+  });
+
+  /* -----------------------------
+     設定復元 + URLパラメータ
+     ?room=...&name=...&role=hq
+  ------------------------------ */
+  function restore() {
+    const q = new URLSearchParams(location.search);
+
+    $("room").value =
+      q.get("room") ||
+      localStorage.getItem("summerfes_intercom_room") ||
+      "summerfes2026";
+
+    $("name").value =
+      q.get("name") ||
+      localStorage.getItem("summerfes_intercom_name") ||
+      "";
+
+    const role =
+      q.get("role") ||
+      localStorage.getItem("summerfes_intercom_role") ||
+      "hq";
+
+    if (ROLE[role]) $("role").value = role;
+
+    const savedGain = localStorage.getItem("summerfes_intercom_micgain");
+    if (savedGain && ["130","160","190"].includes(savedGain)) {
+      $("micBoost").value = savedGain;
+    }
+
+    updateRoleInfo();
+  }
+
+  $("role").addEventListener("change", updateRoleInfo);
+  restore();
+})();
+</script>
 </body>
 </html>
