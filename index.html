@@ -1,1 +1,1109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#0b0c10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>夏祭り INTERCOM</title>
+
+  <style>
+    :root{
+      --bg:#0b0c10;
+      --panel:#17191f;
+      --panel2:#22252d;
+      --line:#353945;
+      --text:#ffffff;
+      --sub:#a8adb9;
+      --ok:#40d77b;
+      --talk:#ff4545;
+      --warn:#ffd24d;
+      --blue:#4aa3ff;
+    }
+
+    *{
+      box-sizing:border-box;
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    html,body{
+      margin:0;
+      min-height:100%;
+      background:var(--bg);
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      overscroll-behavior:none;
+    }
+
+    body{
+      min-height:100dvh;
+    }
+
+    button,input,select{
+      font:inherit;
+    }
+
+    button{
+      cursor:pointer;
+    }
+
+    .wrap{
+      width:min(100%,620px);
+      margin:0 auto;
+      padding:
+        calc(14px + env(safe-area-inset-top))
+        14px
+        calc(26px + env(safe-area-inset-bottom));
+    }
+
+    h1{
+      font-size:26px;
+      margin:4px 0 3px;
+      letter-spacing:.02em;
+    }
+
+    .sub{
+      font-size:13px;
+      color:var(--sub);
+      line-height:1.55;
+    }
+
+    .card{
+      margin-top:14px;
+      padding:16px;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:19px;
+    }
+
+    label{
+      display:block;
+      margin:14px 0 6px;
+      color:#c0c4cd;
+      font-size:13px;
+    }
+
+    input,select{
+      width:100%;
+      padding:14px;
+      color:#fff;
+      background:var(--panel2);
+      border:1px solid #3c414d;
+      border-radius:13px;
+      outline:none;
+      font-size:16px;
+    }
+
+    input:focus,select:focus{
+      border-color:#7d8493;
+    }
+
+    .primary{
+      width:100%;
+      margin-top:18px;
+      padding:16px;
+      border:0;
+      border-radius:15px;
+      background:#fff;
+      color:#101114;
+      font-size:17px;
+      font-weight:900;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .status{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      font-size:12px;
+      white-space:nowrap;
+      color:#c5cad4;
+    }
+
+    .dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:#6c707a;
+    }
+
+    .dot.on{
+      background:var(--ok);
+      box-shadow:0 0 12px rgba(64,215,123,.8);
+    }
+
+    .badge{
+      display:inline-block;
+      margin-top:5px;
+      padding:4px 9px;
+      border-radius:999px;
+      background:#262932;
+      color:#d7d9df;
+      font-size:11px;
+    }
+
+    .talkerPanel{
+      min-height:126px;
+      margin-top:9px;
+      padding:15px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      background:#101217;
+      border:1px solid #303540;
+      border-radius:16px;
+      transition:.12s ease;
+    }
+
+    .talkerPanel.active{
+      background:#102319;
+      border-color:var(--ok);
+      box-shadow:0 0 22px rgba(64,215,123,.12);
+    }
+
+    .talkerLabel{
+      color:var(--sub);
+      font-size:11px;
+      letter-spacing:.08em;
+    }
+
+    #talkerName{
+      margin-top:7px;
+      font-size:27px;
+      font-weight:900;
+      line-height:1.2;
+      word-break:break-word;
+    }
+
+    #talkerGroup{
+      margin-top:7px;
+      color:#d4d7de;
+      font-size:14px;
+    }
+
+    #talkerMore{
+      margin-top:6px;
+      color:var(--warn);
+      font-size:12px;
+    }
+
+    .pttGrid{
+      display:grid;
+      gap:12px;
+      margin-top:14px;
+    }
+
+    .ptt{
+      width:100%;
+      min-height:98px;
+      border:1px solid #454a57;
+      border-radius:18px;
+      background:#292c34;
+      color:#fff;
+      user-select:none;
+      -webkit-user-select:none;
+      touch-action:none;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      transition:transform .05s ease,background .06s ease,border .06s ease;
+    }
+
+    .ptt .big{
+      font-size:21px;
+      font-weight:900;
+    }
+
+    .ptt .small{
+      margin-top:5px;
+      font-size:12px;
+      color:#acb1bc;
+    }
+
+    .ptt.talking{
+      background:var(--talk);
+      border-color:#ff9a9a;
+      transform:scale(.985);
+      box-shadow:0 0 28px rgba(255,69,69,.28);
+    }
+
+    .ptt.talking .small{
+      color:#fff;
+    }
+
+    #myState{
+      margin-top:12px;
+      padding:13px;
+      text-align:center;
+      border-radius:13px;
+      background:#23262d;
+      font-weight:800;
+      font-size:14px;
+    }
+
+    #myState.talking{
+      background:#641a1a;
+    }
+
+    .controls{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:9px;
+      margin-top:11px;
+    }
+
+    .ctrl{
+      border:1px solid #3b404c;
+      border-radius:13px;
+      padding:12px;
+      color:#fff;
+      background:#282b33;
+      font-weight:700;
+    }
+
+    .switchLine{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 0;
+      border-bottom:1px solid #2f333d;
+      font-size:14px;
+    }
+
+    .switchLine:last-child{
+      border-bottom:0;
+    }
+
+    .switch{
+      appearance:none;
+      -webkit-appearance:none;
+      width:46px;
+      height:27px;
+      padding:0;
+      margin:0;
+      border:0;
+      border-radius:999px;
+      background:#4a4e58;
+      position:relative;
+      flex:0 0 auto;
+    }
+
+    .switch::after{
+      content:"";
+      position:absolute;
+      top:3px;
+      left:3px;
+      width:21px;
+      height:21px;
+      border-radius:50%;
+      background:white;
+      transition:.14s;
+    }
+
+    .switch:checked{
+      background:var(--ok);
+    }
+
+    .switch:checked::after{
+      left:22px;
+    }
+
+    .hint{
+      margin-top:13px;
+      font-size:12px;
+      color:#8f95a2;
+      line-height:1.65;
+    }
+
+    .roleInfo{
+      margin-top:13px;
+      padding:12px;
+      background:#22252c;
+      border-radius:13px;
+      color:#d4d7de;
+      font-size:12px;
+      line-height:1.7;
+    }
+
+    .chip{
+      display:inline-block;
+      padding:4px 8px;
+      margin:4px 3px 0 0;
+      border-radius:999px;
+      background:#30343e;
+      color:#fff;
+      font-size:11px;
+    }
+
+    #setup{display:block;}
+    #app{display:none;}
+
+    /* VDO.Ninjaは音声/データエンジンとしてだけ使う */
+    #engineHost iframe{
+      position:fixed;
+      left:-10000px;
+      top:-10000px;
+      width:4px;
+      height:4px;
+      opacity:0.001;
+      border:0;
+      pointer-events:none;
+    }
+
+    .danger{
+      color:#ff9e9e;
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <section id="setup">
+    <h1>🎧 夏祭り INTERCOM</h1>
+    <div class="sub">VDO.Ninjaを音声エンジンとして使う、iPhone向けスタッフインカム</div>
+
+    <div class="card">
+      <label for="room">ROOM名</label>
+      <input id="room" value="summerfes2026" autocomplete="off" spellcheck="false">
+
+      <label for="name">名前</label>
+      <input id="name" placeholder="例：為脇" autocomplete="off">
+
+      <label for="role">担当</label>
+      <select id="role">
+        <option value="hq">本部</option>
+        <option value="stage">ステージ</option>
+        <option value="relay">中継・罰ゲーム会場</option>
+        <option value="audio">音響</option>
+      </select>
+
+      <label for="password">ROOMパスワード（任意）</label>
+      <input id="password" type="password" placeholder="設定推奨" autocomplete="new-password">
+
+      <div id="roleInfo" class="roleInfo"></div>
+
+      <button id="connectBtn" class="primary">🎧 接続する</button>
+
+      <div class="hint">
+        初回はSafariからVDO.Ninjaのマイク使用確認が出る場合があります。「許可」を選んでください。
+        イベント運用ではイヤホン／ヘッドセットを推奨します。
+      </div>
+    </div>
+  </section>
+
+  <section id="app">
+    <div class="row">
+      <div>
+        <h1>INTERCOM</h1>
+        <div id="myName" class="sub"></div>
+        <span id="roleBadge" class="badge"></span>
+      </div>
+      <div class="status">
+        <span id="statusDot" class="dot"></span>
+        <span id="statusText">CONNECTING</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="talkerLabel">CURRENT TALKER</div>
+      <div id="talkerPanel" class="talkerPanel">
+        <div id="talkerName">待機中</div>
+        <div id="talkerGroup">-</div>
+        <div id="talkerMore"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sub">押している間だけ送信</div>
+      <div id="pttGrid" class="pttGrid"></div>
+      <div id="myState">🎧 受信中 / MIC OFF</div>
+    </div>
+
+    <div class="card">
+      <div class="sub">CONTROL</div>
+
+      <div class="controls">
+        <button id="speakerBtn" class="ctrl">🔊 受信 ON</button>
+        <button id="testBeepBtn" class="ctrl">♪ ピッ音テスト</button>
+        <button id="reconnectBtn" class="ctrl">↻ 再接続</button>
+        <button id="settingsBtn" class="ctrl">⚙ 設定へ戻る</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="switchLine">
+          <span>PTT開始時のピッ音</span>
+          <input id="localBeepSwitch" class="switch" type="checkbox" checked>
+        </div>
+        <div class="switchLine">
+          <span>他の人が話し始めた時のピッ音</span>
+          <input id="remoteBeepSwitch" class="switch" type="checkbox" checked>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint">
+      iPhoneで画面をロックしたりSafariをバックグラウンドにすると通信が止まることがあります。
+      使用中はこの画面を前面表示してください。画面が隠れた場合はPTTを強制終了します。
+    </div>
+  </section>
+
+</div>
+
+<div id="engineHost"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* -----------------------------
+     系統
+  ------------------------------ */
+  const GROUP = Object.freeze({
+    ALL: "1",
+    STAGE: "2",
+    RELAY: "3",
+    AUDIO: "4"
+  });
+
+  const GROUP_NAME = Object.freeze({
+    "1": "📢 全体",
+    "2": "🎤 ステージ",
+    "3": "📡 中継・罰ゲーム会場",
+    "4": "🎚 音響"
+  });
+
+  const ROLE = Object.freeze({
+    hq: {
+      label: "本部",
+      receive: [GROUP.ALL, GROUP.STAGE, GROUP.RELAY, GROUP.AUDIO],
+      talk: [
+        ["全体連絡", GROUP.ALL],
+        ["ステージ", GROUP.STAGE],
+        ["中継会場", GROUP.RELAY],
+        ["音響", GROUP.AUDIO]
+      ]
+    },
+    stage: {
+      label: "ステージ",
+      receive: [GROUP.ALL, GROUP.STAGE],
+      talk: [["本部・ステージ", GROUP.STAGE]]
+    },
+    relay: {
+      label: "中継・罰ゲーム会場",
+      receive: [GROUP.ALL, GROUP.RELAY],
+      talk: [["本部・中継", GROUP.RELAY]]
+    },
+    audio: {
+      label: "音響",
+      receive: [GROUP.ALL, GROUP.AUDIO],
+      talk: [["本部・音響", GROUP.AUDIO]]
+    }
+  });
+
+  const $ = id => document.getElementById(id);
+
+  let audioFrame = null;
+  let dataFrame = null;
+
+  let currentRoleKey = "";
+  let currentRole = null;
+  let roomName = "";
+  let displayName = "";
+  let roomPassword = "";
+
+  let activeButton = null;
+  let activeGroup = null;
+  let heartbeatTimer = null;
+  let staleTimer = null;
+  let audioContext = null;
+  let speakerOn = true;
+  let shuttingDown = false;
+
+  const activeTalkers = new Map();
+
+  /* -----------------------------
+     端末ID
+  ------------------------------ */
+  let deviceId = localStorage.getItem("summerfes_intercom_device_id");
+  if (!deviceId) {
+    deviceId = "dev_" + cryptoRandom(10) + "_" + Date.now().toString(36);
+    localStorage.setItem("summerfes_intercom_device_id", deviceId);
+  }
+
+  function cryptoRandom(length) {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    const bytes = new Uint8Array(length);
+    if (window.crypto && crypto.getRandomValues) {
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, b => chars[b % chars.length]).join("");
+    }
+    return Math.random().toString(36).slice(2, 2 + length);
+  }
+
+  /* -----------------------------
+     設定表示
+  ------------------------------ */
+  function updateRoleInfo() {
+    const role = ROLE[$("role").value];
+    const receive = role.receive.map(g => `<span class="chip">${escapeHtml(GROUP_NAME[g])}</span>`).join("");
+    const talk = role.talk.map(([name]) => `<span class="chip">${escapeHtml(name)}</span>`).join("");
+
+    $("roleInfo").innerHTML =
+      `<b>${escapeHtml(role.label)}</b><br>` +
+      `受信：${receive}<br>` +
+      `送信ボタン：${talk}`;
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, ch => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[ch]));
+  }
+
+  /* -----------------------------
+     AudioContext / ピッ音
+  ------------------------------ */
+  async function prepareAudioContext() {
+    if (!audioContext) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      audioContext = new Ctx();
+    }
+    if (audioContext.state === "suspended") {
+      try { await audioContext.resume(); } catch (_) {}
+    }
+  }
+
+  function beep(frequency = 920, duration = 0.075, volume = 0.14) {
+    if (!audioContext || audioContext.state !== "running") return;
+
+    try {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const now = audioContext.currentTime;
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(frequency, now);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(volume, now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start(now);
+      osc.stop(now + duration + 0.02);
+    } catch (err) {
+      console.warn("beep failed", err);
+    }
+  }
+
+  function localStartBeep() {
+    if ($("localBeepSwitch").checked) beep(980, 0.075, 0.15);
+  }
+
+  function remoteStartBeep() {
+    if ($("remoteBeepSwitch").checked) beep(740, 0.065, 0.10);
+  }
+
+  /* -----------------------------
+     VDO iframe control
+  ------------------------------ */
+  function postTo(frame, message) {
+    if (!frame || !frame.contentWindow) return;
+    frame.contentWindow.postMessage(message, "*");
+  }
+
+  function setMic(on) {
+    postTo(audioFrame, { mic: !!on });
+  }
+
+  function setGroups(groups) {
+    postTo(audioFrame, { groups });
+  }
+
+  function setGroupView(groups) {
+    postTo(audioFrame, { groupView: groups });
+  }
+
+  function setSpeakerMuted(muted) {
+    /* VDO.Ninja iframe APIでは mute が受信スピーカーのミュート制御に使える */
+    postTo(audioFrame, { mute: !!muted });
+  }
+
+  function sendIntercomData(payload) {
+    postTo(dataFrame, {
+      sendData: {
+        summerfesIntercom: payload
+      },
+      type: "pcs"
+    });
+  }
+
+  function makeVdoUrl(params) {
+    const p = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === true) {
+        p.append(key, "");
+      } else if (value !== false && value !== null && value !== undefined && value !== "") {
+        p.set(key, String(value));
+      }
+    });
+
+    /* URLSearchParamsの "key=" をVDO.Ninjaのフラグ形式 "key" に寄せる */
+    return "https://vdo.ninja/?" +
+      p.toString()
+        .replace(/(?:^|&)miconly=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)autostart=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)groupmode=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)cleanoutput=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)dataonly=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)cleanish=(?=&|$)/g, m => m.replace("=", ""))
+        .replace(/(?:^|&)mute=(?=&|$)/g, m => m.replace("=", ""));
+  }
+
+  function createEngines() {
+    destroyEngines();
+
+    shuttingDown = false;
+    $("statusDot").classList.remove("on");
+    $("statusText").textContent = "CONNECTING";
+
+    /* 音声用。groupViewで受信系統を固定し、送信時だけgroupsを付与する。 */
+    audioFrame = document.createElement("iframe");
+    audioFrame.id = "vdoAudioEngine";
+    audioFrame.allow = "autoplay *; microphone *; camera *; fullscreen *; picture-in-picture *";
+    audioFrame.setAttribute("playsinline", "");
+    audioFrame.src = makeVdoUrl({
+      room: roomName,
+      label: displayName,
+      password: roomPassword || null,
+      miconly: true,
+      autostart: true,
+      groupmode: true,
+      groupview: currentRole.receive.join(","),
+      cleanoutput: true,
+      mute: true
+    });
+
+    /* PTT状態共有用。音声グループから独立させることで表示を安定させる。 */
+    dataFrame = document.createElement("iframe");
+    dataFrame.id = "vdoDataEngine";
+    dataFrame.allow = "autoplay *";
+    dataFrame.setAttribute("playsinline", "");
+    dataFrame.src = makeVdoUrl({
+      room: roomName + "-intercom-data",
+      label: displayName,
+      password: roomPassword || null,
+      dataonly: true,
+      autostart: true,
+      cleanish: true
+    });
+
+    $("engineHost").appendChild(audioFrame);
+    $("engineHost").appendChild(dataFrame);
+
+    let loaded = 0;
+    const markLoaded = () => {
+      loaded++;
+      if (loaded >= 2) {
+        setTimeout(() => {
+          if (shuttingDown) return;
+          applyIdleAudioState();
+          $("statusDot").classList.add("on");
+          $("statusText").textContent = "ONLINE";
+        }, 900);
+      }
+    };
+
+    audioFrame.addEventListener("load", markLoaded, { once: true });
+    dataFrame.addEventListener("load", markLoaded, { once: true });
+  }
+
+  function destroyEngines() {
+    shuttingDown = true;
+    stopTalk(true);
+    activeTalkers.clear();
+    renderTalkers();
+
+    for (const frame of [audioFrame, dataFrame]) {
+      if (frame) {
+        try {
+          frame.src = "about:blank";
+          frame.remove();
+        } catch (_) {}
+      }
+    }
+
+    audioFrame = null;
+    dataFrame = null;
+  }
+
+  function applyIdleAudioState() {
+    setGroupView(currentRole.receive);
+    setGroups([]);
+    setMic(false);
+    setSpeakerMuted(!speakerOn);
+  }
+
+  /* -----------------------------
+     Talker表示データ
+  ------------------------------ */
+  function talkPayload(action, group) {
+    return {
+      app: "summerfes-intercom",
+      version: 2,
+      action,
+      deviceId,
+      name: displayName,
+      role: currentRoleKey,
+      group,
+      ts: Date.now()
+    };
+  }
+
+  function canHearGroup(group) {
+    return !!currentRole && currentRole.receive.includes(String(group));
+  }
+
+  function updateTalker(payload, isLocal = false) {
+    if (!payload || !canHearGroup(String(payload.group))) return;
+
+    const id = String(payload.deviceId || "");
+    if (!id) return;
+
+    const existed = activeTalkers.has(id);
+
+    activeTalkers.set(id, {
+      deviceId: id,
+      name: payload.name || "名称未設定",
+      role: payload.role || "",
+      group: String(payload.group),
+      updated: Date.now()
+    });
+
+    if (!isLocal && !existed && payload.action === "start") {
+      remoteStartBeep();
+    }
+
+    renderTalkers();
+  }
+
+  function removeTalker(device) {
+    activeTalkers.delete(String(device));
+    renderTalkers();
+  }
+
+  function renderTalkers() {
+    const talkers = [...activeTalkers.values()]
+      .filter(t => canHearGroup(t.group))
+      .sort((a,b) => b.updated - a.updated);
+
+    if (!talkers.length) {
+      $("talkerPanel").classList.remove("active");
+      $("talkerName").textContent = "待機中";
+      $("talkerGroup").textContent = "-";
+      $("talkerMore").textContent = "";
+      return;
+    }
+
+    const main = talkers[0];
+    $("talkerPanel").classList.add("active");
+    $("talkerName").textContent = "🎙 " + main.name;
+    $("talkerGroup").textContent = GROUP_NAME[main.group] || main.group;
+
+    if (talkers.length === 2) {
+      $("talkerMore").textContent = "＋ " + talkers[1].name + " も送信中";
+    } else if (talkers.length > 2) {
+      $("talkerMore").textContent =
+        "＋ " + talkers[1].name + " ほか " + (talkers.length - 2) + "名も送信中";
+    } else {
+      $("talkerMore").textContent = "";
+    }
+  }
+
+  function startStaleChecker() {
+    clearInterval(staleTimer);
+    staleTimer = setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+
+      for (const [id, talker] of activeTalkers.entries()) {
+        if (now - talker.updated > 4300) {
+          activeTalkers.delete(id);
+          changed = true;
+        }
+      }
+      if (changed) renderTalkers();
+    }, 900);
+  }
+
+  /* -----------------------------
+     PTT
+  ------------------------------ */
+  async function startTalk(group, title, button) {
+    if (activeButton || !audioFrame || !dataFrame) return;
+
+    await prepareAudioContext();
+
+    activeButton = button;
+    activeGroup = String(group);
+
+    button.classList.add("talking");
+    $("myState").classList.add("talking");
+    $("myState").textContent = "🔴 送信中：" + title;
+
+    /* ピッ音がマイクへ乗りにくいよう、先に鳴らして少し待ってからMIC ON */
+    localStartBeep();
+
+    setGroups([activeGroup]);
+
+    const startPayload = talkPayload("start", activeGroup);
+    updateTalker(startPayload, true);
+    sendIntercomData(startPayload);
+
+    setTimeout(() => {
+      if (!activeButton || activeGroup !== String(group)) return;
+      setMic(true);
+    }, 115);
+
+    heartbeatTimer = setInterval(() => {
+      if (!activeGroup) return;
+      const heartbeat = talkPayload("heartbeat", activeGroup);
+      sendIntercomData(heartbeat);
+
+      const self = activeTalkers.get(deviceId);
+      if (self) {
+        self.updated = Date.now();
+        activeTalkers.set(deviceId, self);
+      }
+    }, 1200);
+
+    if (navigator.vibrate) {
+      try { navigator.vibrate(18); } catch (_) {}
+    }
+  }
+
+  function stopTalk(silent = false) {
+    if (!activeButton && !activeGroup) return;
+
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+
+    /* まずマイクOFF、次に状態通知、最後に送信Groupを解除 */
+    setMic(false);
+
+    if (activeGroup && !silent) {
+      sendIntercomData(talkPayload("stop", activeGroup));
+    }
+
+    removeTalker(deviceId);
+
+    setTimeout(() => {
+      if (!activeGroup) setGroups([]);
+    }, 90);
+
+    if (activeButton) activeButton.classList.remove("talking");
+    activeButton = null;
+    activeGroup = null;
+
+    $("myState").classList.remove("talking");
+    $("myState").textContent = "🎧 受信中 / MIC OFF";
+  }
+
+  function buildPttButtons() {
+    const host = $("pttGrid");
+    host.innerHTML = "";
+
+    currentRole.talk.forEach(([title, group]) => {
+      const btn = document.createElement("button");
+      btn.className = "ptt";
+      btn.innerHTML =
+        `<div class="big">🎙 ${escapeHtml(title)}</div>` +
+        `<div class="small">押している間 TALK</div>`;
+
+      btn.addEventListener("pointerdown", e => {
+        e.preventDefault();
+        try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+        startTalk(group, title, btn);
+      });
+
+      btn.addEventListener("pointerup", e => {
+        e.preventDefault();
+        stopTalk();
+      });
+
+      btn.addEventListener("pointercancel", stopTalk);
+      btn.addEventListener("lostpointercapture", () => {
+        if (activeButton === btn) stopTalk();
+      });
+      btn.addEventListener("contextmenu", e => e.preventDefault());
+
+      host.appendChild(btn);
+    });
+  }
+
+  /* -----------------------------
+     データ受信
+  ------------------------------ */
+  function handleDataReceived(raw) {
+    let data = raw;
+
+    if (typeof data === "string") {
+      try { data = JSON.parse(data); } catch (_) { return; }
+    }
+
+    const payload = data && data.summerfesIntercom;
+    if (!payload || payload.app !== "summerfes-intercom") return;
+    if (String(payload.deviceId) === deviceId) return;
+
+    if (payload.action === "start" || payload.action === "heartbeat") {
+      updateTalker(payload, false);
+    } else if (payload.action === "stop") {
+      removeTalker(payload.deviceId);
+    }
+  }
+
+  window.addEventListener("message", event => {
+    if (dataFrame && event.source === dataFrame.contentWindow) {
+      const data = event.data;
+      if (data && typeof data === "object" && "dataReceived" in data) {
+        handleDataReceived(data.dataReceived);
+      }
+      return;
+    }
+
+    if (audioFrame && event.source === audioFrame.contentWindow) {
+      /* 必要なら開発時に console.log(event.data) で確認可能 */
+      return;
+    }
+  });
+
+  /* -----------------------------
+     接続
+  ------------------------------ */
+  async function connect() {
+    roomName = $("room").value.trim();
+    displayName = $("name").value.trim();
+    roomPassword = $("password").value;
+    currentRoleKey = $("role").value;
+    currentRole = ROLE[currentRoleKey];
+
+    if (!roomName) {
+      alert("ROOM名を入力してください。");
+      return;
+    }
+
+    if (!displayName) {
+      alert("名前を入力してください。");
+      return;
+    }
+
+    await prepareAudioContext();
+
+    localStorage.setItem("summerfes_intercom_room", roomName);
+    localStorage.setItem("summerfes_intercom_name", displayName);
+    localStorage.setItem("summerfes_intercom_role", currentRoleKey);
+
+    $("setup").style.display = "none";
+    $("app").style.display = "block";
+    $("myName").textContent = displayName;
+    $("roleBadge").textContent = currentRole.label;
+
+    speakerOn = true;
+    $("speakerBtn").textContent = "🔊 受信 ON";
+
+    buildPttButtons();
+    activeTalkers.clear();
+    renderTalkers();
+    createEngines();
+    startStaleChecker();
+  }
+
+  /* -----------------------------
+     Controls
+  ------------------------------ */
+  $("connectBtn").addEventListener("click", connect);
+
+  $("speakerBtn").addEventListener("click", async () => {
+    await prepareAudioContext();
+    speakerOn = !speakerOn;
+    setSpeakerMuted(!speakerOn);
+    $("speakerBtn").textContent = speakerOn ? "🔊 受信 ON" : "🔇 受信 OFF";
+  });
+
+  $("testBeepBtn").addEventListener("click", async () => {
+    await prepareAudioContext();
+    beep(980, 0.075, 0.15);
+  });
+
+  $("reconnectBtn").addEventListener("click", () => {
+    stopTalk();
+    activeTalkers.clear();
+    renderTalkers();
+    createEngines();
+  });
+
+  $("settingsBtn").addEventListener("click", () => {
+    destroyEngines();
+    clearInterval(staleTimer);
+    $("app").style.display = "none";
+    $("setup").style.display = "block";
+    $("statusDot").classList.remove("on");
+    $("statusText").textContent = "OFFLINE";
+  });
+
+  /* 指を離した/アプリ切替などでは必ず止める */
+  window.addEventListener("pointerup", stopTalk);
+  window.addEventListener("blur", stopTalk);
+  window.addEventListener("pagehide", () => stopTalk(true));
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopTalk();
+  });
+
+  /* -----------------------------
+     設定復元 + URLパラメータ
+     ?room=...&name=...&role=hq
+  ------------------------------ */
+  function restore() {
+    const q = new URLSearchParams(location.search);
+
+    $("room").value =
+      q.get("room") ||
+      localStorage.getItem("summerfes_intercom_room") ||
+      "summerfes2026";
+
+    $("name").value =
+      q.get("name") ||
+      localStorage.getItem("summerfes_intercom_name") ||
+      "";
+
+    const role =
+      q.get("role") ||
+      localStorage.getItem("summerfes_intercom_role") ||
+      "hq";
+
+    if (ROLE[role]) $("role").value = role;
+
+    updateRoleInfo();
+  }
+
+  $("role").addEventListener("change", updateRoleInfo);
+  restore();
+})();
+</script>
+</body>
+</html>
 
