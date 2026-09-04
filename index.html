@@ -349,7 +349,6 @@
     #setup{display:block;}
     #app{display:none;}
 
-    /* VDO.Ninjaは音声/データエンジンとしてだけ使う */
     #engineHost iframe{
       position:fixed;
       right:0;
@@ -621,7 +620,7 @@
   }
 
   /* -----------------------------
-     VDO iframe control
+     VDO iframe control (強化版)
   ------------------------------ */
   function postTo(frame, message) {
     if (!frame || !frame.contentWindow) return;
@@ -629,21 +628,24 @@
   }
 
   function setMic(on) {
+    // 新旧API互換性を考慮し重複送信
     postTo(audioFrame, { mic: !!on });
-    // Newer API-compatible form as a fallback
     postTo(audioFrame, { action: "mic", value: !!on });
   }
 
   function setPPT(on) {
     postTo(audioFrame, { PPT: !!on });
+    postTo(audioFrame, { action: "ptt", value: !!on });
   }
 
   function setGroups(groups) {
-    postTo(audioFrame, { groups });
+    postTo(audioFrame, { groups: groups });
+    postTo(audioFrame, { action: "groups", value: groups });
   }
 
   function setGroupView(groups) {
     postTo(audioFrame, { groupView: groups });
+    postTo(audioFrame, { action: "groupView", value: groups });
   }
 
   function setSpeakerMuted(muted) {
@@ -670,7 +672,6 @@
       }
     });
 
-    /* URLSearchParamsの "key=" をVDO.Ninjaのフラグ形式 "key" に寄せる */
     return "https://vdo.ninja/?" +
       p.toString()
         .replace(/(?:^|&)miconly=(?=&|$)/g, m => m.replace("=", ""))
@@ -690,17 +691,19 @@
     $("statusDot").classList.remove("on");
     $("statusText").textContent = "CONNECTING";
 
-    /* 音声用。groupViewで受信系統を固定し、送信時だけgroupsを付与する。 */
+    /* 音声用 Engine */
     audioFrame = document.createElement("iframe");
     audioFrame.id = "vdoAudioEngine";
+    // iOS Safari用に allowusermedia 属性を追加
     audioFrame.allow = "autoplay *; microphone *; camera *; fullscreen *; picture-in-picture *";
-    audioFrame.setAttribute("playsinline", "");
+    audioFrame.setAttribute("allowusermedia", "true");
+    audioFrame.setAttribute("playsinline", "true");
+    
     audioFrame.src = makeVdoUrl({
       room: roomName,
       label: displayName,
       password: roomPassword || null,
       miconly: true,
-      audiodevice: 1,
       videodevice: 0,
       safemode: true,
       autostart: true,
@@ -710,11 +713,11 @@
       mute: true
     });
 
-    /* PTT状態共有用。音声グループから独立させることで表示を安定させる。 */
+    /* PTTデータ用 Engine */
     dataFrame = document.createElement("iframe");
     dataFrame.id = "vdoDataEngine";
     dataFrame.allow = "autoplay *";
-    dataFrame.setAttribute("playsinline", "");
+    dataFrame.setAttribute("playsinline", "true");
     dataFrame.src = makeVdoUrl({
       room: roomName + "-intercom-data",
       label: displayName,
@@ -864,7 +867,7 @@
   }
 
   /* -----------------------------
-     PTT
+     PTT (ウェイト調整版)
   ------------------------------ */
   async function startTalk(group, title, button) {
     if (activeButton || !audioFrame || !dataFrame) return;
@@ -878,20 +881,21 @@
     $("myState").classList.add("talking");
     $("myState").textContent = "🔴 送信中：" + title;
 
-    /* ピッ音がマイクへ乗りにくいよう、先に鳴らして少し待ってからMIC ON */
     localStartBeep();
 
+    // 1. 先に送信先グループを渡す
     setGroups([activeGroup]);
 
     const startPayload = talkPayload("start", activeGroup);
     updateTalker(startPayload, true);
     sendIntercomData(startPayload);
 
+    // 2. iOSの音声ルーティング切り替えのため 300ms 待ってから PTT / MIC ON
     setTimeout(() => {
       if (!activeButton || activeGroup !== String(group)) return;
-      setMic(true);
       setPPT(true);
-    }, 220);
+      setMic(true);
+    }, 300);
 
     heartbeatTimer = setInterval(() => {
       if (!activeGroup) return;
@@ -916,7 +920,6 @@
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
 
-    /* まずPTT/MICをOFF、次に状態通知、最後に送信Groupを解除 */
     setPPT(false);
     setMic(false);
 
@@ -999,11 +1002,6 @@
       }
       return;
     }
-
-    if (audioFrame && event.source === audioFrame.contentWindow) {
-      /* 必要なら開発時に console.log(event.data) で確認可能 */
-      return;
-    }
   });
 
   /* -----------------------------
@@ -1080,7 +1078,6 @@
     $("statusText").textContent = "OFFLINE";
   });
 
-  /* 指を離した/アプリ切替などでは必ず止める */
   window.addEventListener("pointerup", stopTalk);
   window.addEventListener("blur", stopTalk);
   window.addEventListener("pagehide", () => stopTalk(true));
@@ -1089,8 +1086,7 @@
   });
 
   /* -----------------------------
-     設定復元 + URLパラメータ
-     ?room=...&name=...&role=hq
+     設定復元
   ------------------------------ */
   function restore() {
     const q = new URLSearchParams(location.search);
