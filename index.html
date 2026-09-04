@@ -241,6 +241,12 @@
       color:#fff;
     }
 
+    .ptt:disabled{
+      opacity:.46;
+      filter:saturate(.55);
+      cursor:not-allowed;
+    }
+
     #myState{
       margin-top:12px;
       padding:13px;
@@ -529,8 +535,8 @@
     </div>
 
     <div class="hint">
-      iPhoneで画面をロックしたりSafariをバックグラウンドにすると通信が止まることがあります。
-      使用中はこの画面を前面表示してください。画面が隠れた場合はPTTを強制終了します。
+      iPhoneでホーム画面へ移動するとWebRTCのマイクが停止することがあります。
+      この版ではSafariへ戻ったことを検知すると、マイク再取得とVDO.Ninja再接続を自動実行します。復帰中はPTTを一時ロックします。
     </div>
   </section>
 
@@ -609,6 +615,14 @@
   let lastVdoLoudness = 0;
   let loudnessSubscribed = false;
   let preflightStream = null;
+
+  /* iPhone background -> foreground auto recovery */
+  let appConnected = false;
+  let resumeInProgress = false;
+  let resumeTimer = null;
+  let lastHiddenAt = 0;
+  let lastResumeAt = 0;
+  let recoveryReloadUsed = false;
 
   const activeTalkers = new Map();
 
@@ -753,14 +767,22 @@
      AudioContext / ピッ音
   ------------------------------ */
   async function prepareAudioContext() {
-    if (!audioContext) {
+    if (!audioContext || audioContext.state === "closed") {
       const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return;
-      audioContext = new Ctx();
+      if (!Ctx) return false;
+      try { audioContext = new Ctx(); } catch (_) { return false; }
     }
+
     if (audioContext.state === "suspended") {
-      try { await audioContext.resume(); } catch (_) {}
+      /* iOSではbackground復帰後 resume() がresolveしないことがあるためタイムアウトする */
+      try {
+        await Promise.race([
+          audioContext.resume(),
+          new Promise(resolve => setTimeout(resolve, 700))
+        ]);
+      } catch (_) {}
     }
+    return audioContext.state === "running";
   }
 
   function beep(frequency = 920, duration = 0.075, volume = 0.14) {
@@ -861,12 +883,94 @@
         .replace(/(?:^|&)mute=(?=&|$)/g, m => m.replace("=", ""));
   }
 
+  function setPttEnabled(enabled) {
+    document.querySelectorAll(".ptt").forEach(btn => {
+      btn.disabled = !enabled;
+    });
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function recoverAfterForeground(trigger = "resume") {
+    if (!appConnected || !currentRole || document.hidden || resumeInProgress) return;
+
+    /* focus/pageshow/visibilitychange が連続して来るので短時間の重複を除外 */
+    const now = Date.now();
+    if (now - lastResumeAt < 700) return;
+    lastResumeAt = now;
+    resumeInProgress = true;
+
+    stopTalk();
+    setPttEnabled(false);
+    $("statusDot").classList.remove("on");
+    $("statusText").textContent = "自動復帰中";
+    $("liveMicStatus").textContent = "復帰中…";
+    $("liveMicStatus").className = "micWarn";
+    $("liveMicNote").textContent = "iPhoneのマイクと通信を自動で再接続しています。";
+
+    try {
+      /* Safariが前面化してAVAudioSessionが戻るまで少し待つ */
+      await sleep(450);
+      if (document.hidden) return;
+
+      /* AudioContextの復帰は失敗してもWebRTC再接続を続行する */
+      await prepareAudioContext();
+
+      /* backgroundでended/mutedになったマイクを必ず取り直す */
+      let micReady = await preflightMicrophone(false);
+      if (!micReady && !document.hidden) {
+        await sleep(800);
+        micReady = await preflightMicrophone(false);
+      }
+
+      if (!micReady) {
+        /* iOS 26系では同じページコンテキストのgetUserMedia再試行が回復しない場合がある。
+           1セッション1回だけページ全体を自動リロードし、その後自動再接続する。 */
+        const alreadyReloaded = sessionStorage.getItem("summerfes_resume_reload") === "1";
+        if (!alreadyReloaded) {
+          sessionStorage.setItem("summerfes_resume_reload", "1");
+          sessionStorage.setItem("summerfes_auto_reconnect", "1");
+          $("statusText").textContent = "再読込中";
+          location.reload();
+          return;
+        }
+
+        $("statusText").textContent = "MIC ERROR";
+        $("liveMicStatus").textContent = "自動復帰失敗";
+        $("liveMicStatus").className = "micBad";
+        $("liveMicNote").textContent = "マイク権限を確認してください。必要なら「マイク再認証」を押してください。";
+        setPttEnabled(true);
+        return;
+      }
+
+      /* 古いPeerConnection/WebSocketを捨てて全面的に再構築 */
+      activeTalkers.clear();
+      renderTalkers();
+      createEngines();
+
+      /* 正常にマイクを再取得できたらリロード保険を解除 */
+      sessionStorage.removeItem("summerfes_resume_reload");
+
+    } finally {
+      resumeInProgress = false;
+    }
+  }
+
+  function scheduleForegroundRecovery(trigger) {
+    if (!appConnected || document.hidden) return;
+    clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(() => recoverAfterForeground(trigger), 300);
+  }
+
   function createEngines() {
     destroyEngines();
 
     shuttingDown = false;
+    setPttEnabled(false);
     $("statusDot").classList.remove("on");
-    $("statusText").textContent = "CONNECTING";
+    $("statusText").textContent = resumeInProgress ? "自動復帰中" : "CONNECTING";
 
     /* 音声用。groupViewで受信系統を固定し、送信時だけgroupsを付与する。 */
     audioFrame = document.createElement("iframe");
@@ -924,6 +1028,10 @@
           loudnessSubscribed = true;
           $("statusDot").classList.add("on");
           $("statusText").textContent = "ONLINE";
+          $("liveMicStatus").textContent = "待機中";
+          $("liveMicStatus").className = "micWarn";
+          $("liveMicNote").textContent = "復帰完了。PTTを押して話すと入力音量を確認できます。";
+          setPttEnabled(true);
         }, 900);
       }
     };
@@ -1295,7 +1403,10 @@
     localStorage.setItem("summerfes_intercom_name", displayName);
     localStorage.setItem("summerfes_intercom_role", currentRoleKey);
     localStorage.setItem("summerfes_intercom_micgain", String(micGainPercent));
+    /* パスワードは永続保存せず、このタブの復帰用にsessionStorageだけへ保持 */
+    sessionStorage.setItem("summerfes_intercom_password", roomPassword || "");
 
+    appConnected = true;
     $("setup").style.display = "none";
     $("app").style.display = "block";
     $("myName").textContent = displayName;
@@ -1357,6 +1468,8 @@
   });
 
   $("settingsBtn").addEventListener("click", () => {
+    appConnected = false;
+    clearTimeout(resumeTimer);
     destroyEngines();
     clearInterval(staleTimer);
     $("app").style.display = "none";
@@ -1367,17 +1480,58 @@
 
   /* 指を離した/アプリ切替などでは必ず止める */
   window.addEventListener("pointerup", stopTalk);
-  window.addEventListener("blur", stopTalk);
-  window.addEventListener("pagehide", () => stopTalk(true));
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      stopTalk();
-    } else if (audioFrame) {
-      $("liveMicStatus").textContent = "要確認";
-      $("liveMicStatus").className = "micWarn";
-      $("liveMicNote").textContent = "Safariへ戻った後に音が出ない場合は「マイク再認証」を押してください。";
+
+  window.addEventListener("blur", () => {
+    stopTalk();
+  });
+
+  window.addEventListener("pagehide", () => {
+    lastHiddenAt = Date.now();
+    stopTalk(true);
+    if (appConnected) {
+      setPttEnabled(false);
+      $("statusDot").classList.remove("on");
+      $("statusText").textContent = "PAUSED";
     }
   });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      lastHiddenAt = Date.now();
+      stopTalk();
+      if (appConnected) {
+        setPttEnabled(false);
+        $("statusDot").classList.remove("on");
+        $("statusText").textContent = "PAUSED";
+        $("liveMicStatus").textContent = "一時停止";
+        $("liveMicStatus").className = "micWarn";
+        $("liveMicNote").textContent = "Safariへ戻ると自動でマイクと通信を復帰します。";
+      }
+    } else {
+      scheduleForegroundRecovery("visibilitychange");
+    }
+  });
+
+  window.addEventListener("pageshow", () => {
+    scheduleForegroundRecovery("pageshow");
+  });
+
+  window.addEventListener("focus", () => {
+    /* 普通のタップfocusでは再接続せず、直前にbackground化していた時だけ */
+    if (lastHiddenAt && Date.now() - lastHiddenAt < 10 * 60 * 1000) {
+      scheduleForegroundRecovery("focus");
+    }
+  });
+
+  window.addEventListener("online", () => {
+    scheduleForegroundRecovery("online");
+  });
+
+  if (navigator.mediaDevices && "ondevicechange" in navigator.mediaDevices) {
+    navigator.mediaDevices.addEventListener("devicechange", () => {
+      if (appConnected && !document.hidden) scheduleForegroundRecovery("devicechange");
+    });
+  }
 
   /* -----------------------------
      設定復元 + URLパラメータ
@@ -1408,11 +1562,31 @@
       $("micBoost").value = savedGain;
     }
 
+    const sessionPassword = sessionStorage.getItem("summerfes_intercom_password");
+    if (sessionPassword !== null) $("password").value = sessionPassword;
+
     updateRoleInfo();
+  }
+
+  async function autoReconnectAfterReloadIfNeeded() {
+    if (sessionStorage.getItem("summerfes_auto_reconnect") !== "1") return;
+    sessionStorage.removeItem("summerfes_auto_reconnect");
+
+    /* iOSのAVAudioSessionが完全に戻るまで少し待つ */
+    await sleep(700);
+    if (document.hidden) return;
+
+    $("preflightNote").textContent = "ホーム画面からの復帰処理を自動実行しています。";
+    try {
+      await connect();
+    } catch (err) {
+      console.warn("auto reconnect after reload failed", err);
+    }
   }
 
   $("role").addEventListener("change", updateRoleInfo);
   restore();
+  autoReconnectAfterReloadIfNeeded();
 })();
 </script>
 </body>
